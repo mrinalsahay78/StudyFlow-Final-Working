@@ -1,0 +1,23 @@
+# Render blueprint: one web service that serves both the API and the built UI.
+# Create the MongoDB Atlas free cluster yourself, then paste its URI as MONGO_URI.
+services:
+  - type: web
+    name: studyflow
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false   # paste your MongoDB Atlas connection string in the dashboard
+      - key: PUBLIC_URL
+        sync: false   # set to https://<your-service>.onrender.com after first deploy

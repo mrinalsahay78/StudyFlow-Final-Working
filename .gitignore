@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+frontend/dist/
+
+# secrets & local env
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# runtime data
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# logs / OS / editors
+*.log
+.DS_Store
+.vscode/
+.idea/
+coverage/
+*.tar.gz
