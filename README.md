@@ -1,106 +1,82 @@
-# StudyFlow v7 — Advanced Student Study Planner
+# StudyFlow AI
 
-A polished local full-stack student study planner for macOS: React/Vite + Express + MongoDB/Mongoose.
+Study platform for engineering students: syllabus tracking, smart planner, focus timer,
+quizzes, spaced repetition, an AI study assistant, and analytics.
 
-## What is included
+- **Frontend** — React 18 + Vite 6 + React Router 7 (`frontend/`)
+- **Backend** — Node 20 + Express 4 + Mongoose 8 (`backend/`), version 8.0.0
+- **Database** — MongoDB (local `mongod` in development, MongoDB Atlas in production)
 
-- Creative public home page before login
-- Separate Login and Register screens
-- JWT + bcrypt authentication
-- Dashboard
-- Subjects, Tasks, Study Sessions, Timetable, Exams, Assignments and Goals
-- Analytics
-- Profile
-- Custom focus timer: choose any minutes/seconds instead of being locked to 25 minutes
-- Timer presets plus custom session name
-- Timer state saved in the browser
-- Dark visual design and responsive layout
-- Error boundary so unexpected React errors do not leave a blank page
-- Task priority normalization for low/medium/high
+## Layout
 
-## Demo account
-
-- Email: `demo@studyflow.com`
-- Password: `Demo@123`
-
-## Terminal 1 — MongoDB
-
-```bash
-docker start studyflow-mongo 2>/dev/null || docker run -d \
-  --name studyflow-mongo \
-  -p 27017:27017 \
-  -v studyflow_mongo_data:/data/db \
-  mongo:7
+```
+backend/            Express API (routes, models, middleware, config)
+frontend/           React SPA (pages, components, hooks, lib/api.js)
+docs/DEPLOY.md      Production deployment (Render + Atlas, optional Vercel UI)
+docs/BASELINE-AUDIT.md
+Dockerfile          Single-origin production image (API + built SPA)
+render.yaml         Render blueprint for the Docker image
+frontend/vercel.json  Optional static hosting for the UI
 ```
 
-## Terminal 2 — Backend
+## Run it locally
+
+Requirements: Node 20+, MongoDB 7 (`brew services start mongodb-community`, or Docker).
+
+**1. Configure**
 
 ```bash
-cd ~/Downloads/StudyFlow-Final-Working-v7/backend
-PID=$(lsof -ti :5001); [ -n "$PID" ] && kill -9 $PID
+cp backend/.env.example backend/.env     # then edit values
+```
+
+At minimum set `MONGO_URI`. For local development the defaults work:
+`PORT=5001`, `HOST=127.0.0.1`, `MONGO_URI=mongodb://127.0.0.1:27017/studyflow`.
+
+**2. Backend**
+
+```bash
+cd backend
 npm install
-npm run seed
-npm run dev
-```
-
-Backend: http://127.0.0.1:5001
-
-Verify:
-
-```bash
+npm run seed:demo     # optional: starter subjects + demo account
+npm run dev           # http://127.0.0.1:5001
 curl http://127.0.0.1:5001/api/health
 ```
 
-Expected JSON contains `"status":"ok"` and `"version":"7.0.0"`.
-
-## Terminal 3 — Frontend
+**3. Frontend**
 
 ```bash
-cd ~/Downloads/StudyFlow-Final-Working-v7/frontend
+cd frontend
 npm install
-npm run dev -- --host 127.0.0.1
+npm run dev           # http://127.0.0.1:5173 (proxies /api to :5001)
 ```
 
-Frontend: http://127.0.0.1:5173
+The Vite dev server proxies `/api` to `http://127.0.0.1:5001`, so the browser only ever
+talks to one origin and no CORS setup is needed. Override the proxy target with
+`VITE_DEV_API`, and point the SPA at a remote API with `VITE_API_URL` (see
+`frontend/.env.example`).
 
-## First screen
+**Demo account** (only if you ran `npm run seed:demo`): `demo@studyflow.com` / `Demo@123`.
+The login form is always empty — credentials are never pre-filled in the UI.
 
-Opening `http://127.0.0.1:5173` shows the StudyFlow home page. Click **Log in** or **Create free account**.
+## Production
 
-## Focus timer
+The API and the built SPA are served by **one Express process on one origin** (see
+`Dockerfile`), which removes CORS from the equation:
 
-Open **Focus Timer** after login. You can enter any value from 0–999 minutes and 0–59 seconds, apply it, name the session, start/pause it and reset it. The timer is intentionally not fixed at 25 minutes.
+```bash
+docker build -t studyflow .
+docker run -p 5001:5001 -e JWT_SECRET=$(openssl rand -hex 48) \
+  -e MONGO_URI="mongodb+srv://..." -e PUBLIC_URL="https://your-host" studyflow
+```
+
+In production the server **refuses to start** without `JWT_SECRET`, and `/api/health`
+reports `database: true` once MongoDB is reachable. Full step-by-step (Atlas, Render
+blueprint, optional Vercel UI, post-deploy checklist): **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 ## Notes
 
-Run Terminal 1, Terminal 2 and Terminal 3 in separate windows. Do not run an old StudyFlow backend on port 5001 at the same time. The Terminal 2 command stops an existing process on port 5001 before starting this version.
-
-## v6 task upgrades
-
-- Complete/restore tasks with one click.
-- Completed tasks are persisted with completion timestamps.
-- Task filters: Active, Completed, All.
-- Dedicated Task History page with search, 7/30 day filters, completion statistics, and restore.
-- Dashboard completion counts remain database-backed.
-
-## v7 universal completion system
-
-Every planner item now uses the same completion workflow as Tasks:
-
-- Subjects: Complete / Restore
-- Study Sessions: Complete / Restore
-- Exams: Complete / Restore
-- Assignments: Complete / Restore
-- Goals: Complete / Restore
-- Timetable blocks: Complete / Restore
-- Active / Completed / All filters on each page
-- Completion counters and percentage on each page
-- Completion timestamp saved to MongoDB
-- Complete History combines finished work from every planner module
-- Restore from History returns the item to active work
-
-The Task page keeps its dedicated priority/status workflow, while the universal completion field provides a consistent finish/restore experience across the rest of the planner.
-# StudyFlow-Final-Working
-# StudyFlow-Final-Working
-# StudyFlow-Final-Working
-# StudyFlow-Final-Working
+- `AI_PROVIDER` / `AI_API_KEY` are optional. Unset, the assistant labels its answers as
+  built-in frameworks instead of pretending to be model output.
+- Password reset logs the reset link to the server console when SMTP is not configured.
+- `npm test` in `backend/` is wired to `node --test tests/`, but there is no `tests/`
+  directory yet — add one before relying on that script.
