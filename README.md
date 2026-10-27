@@ -78,5 +78,8 @@ blueprint, optional Vercel UI, post-deploy checklist): **[docs/DEPLOY.md](docs/D
 - `AI_PROVIDER` / `AI_API_KEY` are optional. Unset, the assistant labels its answers as
   built-in frameworks instead of pretending to be model output.
 - Password reset logs the reset link to the server console when SMTP is not configured.
-- `npm test` in `backend/` is wired to `node --test tests/`, but there is no `tests/`
-  directory yet — add one before relying on that script.
+- `npm test` in `backend/` runs the API suite with Node's built-in runner
+  (`node --test "tests/**/*.test.js"`). It boots the real Express app against an in-memory
+  MongoDB (`mongodb-memory-server`, which fetches a `mongod` binary on first run), so it
+  needs no local database and no running server. Coverage: auth flows, core CRUD,
+  user-to-user data isolation, file upload/download and validation errors.

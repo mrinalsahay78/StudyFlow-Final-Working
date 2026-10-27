@@ -9,6 +9,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 const rateLimit = require("express-rate-limit");
+const { ZodError } = require("zod");
 
 const config = require("./config");
 
@@ -122,6 +123,35 @@ app.use("/api", (req, res) =>
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  // A validation failure is the caller's input being wrong, not a server
+  // fault: answer 400 with per-field messages instead of a generic 500.
+  if (err instanceof ZodError) {
+    const details = err.issues.map((issue) => ({
+      field: issue.path.join(".") || "_",
+      message: issue.message,
+    }));
+    const message = details.length
+      ? `${details[0].message}${details.length > 1 ? ` (and ${details.length - 1} more)` : ""}`
+      : "Please check the values you entered.";
+    console.warn(`[api] ${req.method} ${req.originalUrl} -> 400 validation: ${message}`);
+    if (res.headersSent) return;
+    return res.status(400).json({ ok: false, message, code: "VALIDATION", details });
+  }
+
+  // Multer reports upload problems (too large, too many files, aborted) as its
+  // own error type with a code but no status: map them to 4xx so a bad upload
+  // never looks like a server crash.
+  if (err.name === "MulterError") {
+    const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? `That file is too large. The limit is ${Math.round(config.maxUploadBytes / (1024 * 1024))} MB.`
+        : `Upload rejected: ${err.message}`;
+    console.warn(`[api] ${req.method} ${req.originalUrl} -> ${status}: ${err.code}`);
+    if (res.headersSent) return;
+    return res.status(status).json({ ok: false, message, code: err.code });
+  }
+
   const status = err.status || err.statusCode || 500;
   // Never log secrets: only method, path, status and message.
   console.error(
