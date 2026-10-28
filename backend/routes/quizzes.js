@@ -145,7 +145,10 @@ router.post(
       const given = givenByQuestion.get(String(q._id)) ?? "";
       let correct = false;
       if (q.type === "mcq") {
-        correct = q.answerIndex !== null && String(q.answerIndex) === given;
+        // A question with no stored answer key must never be scored correct:
+        // otherwise "no key" (null) would compare equal to a blank answer.
+        const hasKey = q.answerIndex !== null && q.answerIndex !== undefined;
+        correct = hasKey && given !== "" && String(q.answerIndex) === given;
       } else {
         correct = shortAnswerMatches(given, q.answerText);
       }

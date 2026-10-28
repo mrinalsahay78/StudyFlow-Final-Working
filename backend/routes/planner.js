@@ -369,7 +369,9 @@ router.post(
         const candidate = candidates[cursorIndex % candidates.length];
         cursorIndex += 1;
         if (!candidate || candidate.remaining <= 0) continue;
-        const length = Math.min(sessionMinutes, candidate.remaining);
+        // Never round a session down to zero minutes: every other write path
+        // enforces "end must be after start", and a 0-minute entry breaks it.
+        const length = Math.max(5, Math.min(sessionMinutes, Math.ceil(candidate.remaining)));
         const doc = await PlannerEntry.create({
           userId: req.user._id,
           title: candidate.title,
