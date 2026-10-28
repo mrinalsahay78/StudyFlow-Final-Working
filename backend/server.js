@@ -108,7 +108,7 @@ if (fs.existsSync(indexHtml)) {
     }),
   );
   // SPA fallback: everything that is not an API route serves the app shell.
-  app.get(/^(?!\/api).*/, (req, res) => res.sendFile(indexHtml));
+  app.get(/^\/(?!api\/).*/, (req, res) => res.sendFile(indexHtml));
 } else {
   app.get("/", (req, res) =>
     res

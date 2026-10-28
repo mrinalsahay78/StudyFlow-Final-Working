@@ -41,9 +41,10 @@ const config = {
     .map((s) => s.trim())
     .filter(Boolean),
   // Where built frontend assets live (served by this server in production).
+  // Built frontend assets. backend/config -> repo root is three levels up.
   clientDir: process.env.CLIENT_DIR
     ? path.resolve(process.env.CLIENT_DIR)
-    : path.resolve(__dirname, "..", "frontend", "dist"),
+    : path.resolve(__dirname, "..", "..", "frontend", "dist"),
   uploadDir: process.env.UPLOAD_DIR
     ? path.resolve(process.env.UPLOAD_DIR)
     : path.resolve(__dirname, "uploads"),
