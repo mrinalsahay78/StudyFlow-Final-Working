@@ -105,6 +105,8 @@ router.get(
         .sort({ dueDate: 1 })
         .limit(5)
         .lean(),
+      // Any upcoming exam inside the window, whatever its kind (internal,
+      // practical, viva, end semester, mock) and even if it has no subject.
       Exam.find({ userId: uid, status: "upcoming", date: { $gte: today, $lte: in3 } })
         .sort({ date: 1 })
         .limit(5)

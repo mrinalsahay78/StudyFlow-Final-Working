@@ -69,11 +69,20 @@ app.use("/api/auth", authRouter);
 app.use("/api/subjects", require("./routes/subjects"));
 app.use("/api/syllabus", require("./routes/syllabus"));
 app.use("/api/tasks", require("./routes/tasks"));
-app.use("/api/study", require("./routes/sessions"));
+const sessionRoutes = require("./routes/sessions");
+app.use("/api/study", sessionRoutes);
+app.use("/api", sessionRoutes);
 app.use("/api/planner", require("./routes/planner"));
-app.use("/api/academics", require("./routes/academics"));
-app.use("/api/library", require("./routes/notes"));
-app.use("/api/quiz", require("./routes/quizzes"));
+const academicRoutes = require("./routes/academics");
+app.use("/api/academics", academicRoutes);
+app.use("/api", academicRoutes);
+const noteRoutes = require("./routes/notes");
+app.use("/api/library", noteRoutes);
+app.use("/api", noteRoutes);
+const quizRoutes = require("./routes/quizzes");
+// Quizzes/flashcards are exposed on both the grouped (/api/quiz/...) and the
+// flat (/api/quizzes, /api/flashcards) paths so both documented shapes work.
+app.use("/api", quizRoutes);
 app.use("/api/engineering", require("./routes/engineering"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api", require("./routes/search"));

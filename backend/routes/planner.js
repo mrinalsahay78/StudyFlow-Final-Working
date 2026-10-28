@@ -358,16 +358,26 @@ router.post(
       const dayEnd = toMinutes(req.user.prefs?.dayEnd || "22:00");
       let windowStart = toMinutes(dayStart);
       let usedToday = 0;
-      while (usedToday + sessionMinutes <= dailyMinutes) {
+      let slotsToday = 0;
+      // Hard cap on iterations: a day can never hold more than 144 slots, and
+      // without this guard a pool of exhausted candidates loops forever.
+      const maxSlots = Math.ceil(1440 / Math.max(1, sessionMinutes)) + 1;
+      while (usedToday + sessionMinutes <= dailyMinutes && slotsToday < maxSlots) {
+        slotsToday += 1;
         let slotStart = windowStart;
         let blocked = busy.find(([s, e]) => overlaps(slotStart, slotStart + sessionMinutes, s, e));
-        while (blocked && slotStart + sessionMinutes < dayEnd) {
-          slotStart = blocked[1] + gap;
+        let guard = 0;
+        while (blocked && slotStart + sessionMinutes < dayEnd && guard < 200) {
+          guard += 1;
+          slotStart = Math.max(blocked[1] + gap, slotStart + 1);
           blocked = busy.find(([s, e]) => overlaps(slotStart, slotStart + sessionMinutes, s, e));
         }
         if (slotStart + sessionMinutes > dayEnd) break;
         const candidate = candidates[cursorIndex % candidates.length];
         cursorIndex += 1;
+        // Skip candidates that are already fully scheduled. `cursorIndex` keeps
+        // advancing, so a candidate is never retried in this slot; the loop
+        // simply moves on to the next one.
         if (!candidate || candidate.remaining <= 0) continue;
         // Never round a session down to zero minutes: every other write path
         // enforces "end must be after start", and a 0-minute entry breaks it.

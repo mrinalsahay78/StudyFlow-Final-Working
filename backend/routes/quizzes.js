@@ -29,8 +29,52 @@ const badId = (res) => fail(res, 400, "Invalid id", "BAD_ID");
 
 /* ---------------------------------------------------------------- quizzes */
 
+/**
+ * Topic-wise performance: for every topic that has ever appeared in an attempt,
+ * accuracy across all attempts plus the quiz history that produced it.
+ */
 router.get(
-  "/quizzes",
+  ["/performance", "/quizzes/performance"],
+  asyncHandler(async (req, res) => {
+    // Scoped to the caller's own attempts only. (A test runner may share one
+    // database between files, so every query here must filter by userId.)
+    const attempts = await QuizAttempt.find({ userId: req.user._id })
+      .sort({ submittedAt: 1 })
+      .lean();
+    const byTopic = new Map();
+    attempts.forEach((a) => {
+      a.answers.forEach((ans) => {
+        const key = ans.topicTitle || "General";
+        if (!byTopic.has(key)) byTopic.set(key, { topic: key, correct: 0, total: 0 });
+        const row = byTopic.get(key);
+        row.total += 1;
+        if (ans.correct) row.correct += 1;
+      });
+    });
+    const topics = [...byTopic.values()]
+      .map((t) => ({ ...t, accuracy: t.total ? Math.round((t.correct / t.total) * 100) : 0 }))
+      .sort((a, b) => a.accuracy - b.accuracy);
+    const trend = attempts.map((a) => ({
+      date: a.submittedAt,
+      accuracy: a.accuracy,
+      score: a.score,
+      total: a.total,
+    }));
+    ok(res, {
+      topics,
+      weakTopics: topics.filter((t) => t.total >= 2 && t.accuracy < 60),
+      trend,
+      attempts: attempts.length,
+      averageAccuracy: attempts.length
+        ? Math.round(attempts.reduce((s, a) => s + a.accuracy, 0) / attempts.length)
+        : 0,
+    });
+  }),
+);
+
+
+router.get(
+  ["/quizzes", "/quiz/quizzes"],
   asyncHandler(async (req, res) => {
     const filter = { userId: req.user._id };
     if (req.query.subjectId && mongoose.isValidObjectId(req.query.subjectId)) {
@@ -52,7 +96,7 @@ router.get(
 );
 
 router.post(
-  "/quizzes",
+  ["/quizzes", "/quiz/quizzes"],
   asyncHandler(async (req, res) => {
     const body = quizCreate.parse(req.body);
     const doc = await Quiz.create({ ...body, userId: req.user._id });
@@ -61,7 +105,7 @@ router.post(
 );
 
 router.get(
-  "/quizzes/:id",
+  ["/quizzes/:id", "/quiz/quizzes/:id"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id }).lean();
@@ -83,7 +127,7 @@ router.get(
 );
 
 router.put(
-  "/quizzes/:id",
+  ["/quizzes/:id", "/quiz/quizzes/:id"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const body = quizUpdate.parse(req.body);
@@ -98,7 +142,7 @@ router.put(
 );
 
 router.delete(
-  "/quizzes/:id",
+  ["/quizzes/:id", "/quiz/quizzes/:id"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const doc = await Quiz.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
@@ -130,7 +174,7 @@ function shortAnswerMatches(given, expected) {
 }
 
 router.post(
-  "/quizzes/:id/attempts",
+  ["/quizzes/:id/attempts", "/quiz/quizzes/:id/attempts"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const { answers, durationSeconds } = attemptSubmit.parse(req.body || {});
@@ -209,7 +253,7 @@ router.post(
 );
 
 router.get(
-  "/quizzes/:id/attempts",
+  ["/quizzes/:id/attempts", "/quiz/quizzes/:id/attempts"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const items = await QuizAttempt.find({
@@ -224,7 +268,7 @@ router.get(
 );
 
 router.get(
-  "/attempts",
+  ["/attempts", "/quiz/attempts"],
   asyncHandler(async (req, res) => {
     const items = await QuizAttempt.find({ userId: req.user._id })
       .sort({ submittedAt: -1 })
@@ -238,47 +282,6 @@ router.get(
     ok(res, {
       items: items.map((a) => ({ ...a, quizTitle: titles.get(String(a.quizId)) || "Quiz" })),
       total: items.length,
-    });
-  }),
-);
-
-/**
- * Topic-wise performance: for every topic that has ever appeared in an attempt,
- * accuracy across all attempts plus the quiz history that produced it.
- */
-router.get(
-  "/performance",
-  asyncHandler(async (req, res) => {
-    const attempts = await QuizAttempt.find({ userId: req.user._id })
-      .sort({ submittedAt: 1 })
-      .lean();
-    const byTopic = new Map();
-    attempts.forEach((a) => {
-      a.answers.forEach((ans) => {
-        const key = ans.topicTitle || "General";
-        if (!byTopic.has(key)) byTopic.set(key, { topic: key, correct: 0, total: 0 });
-        const row = byTopic.get(key);
-        row.total += 1;
-        if (ans.correct) row.correct += 1;
-      });
-    });
-    const topics = [...byTopic.values()]
-      .map((t) => ({ ...t, accuracy: t.total ? Math.round((t.correct / t.total) * 100) : 0 }))
-      .sort((a, b) => a.accuracy - b.accuracy);
-    const trend = attempts.map((a) => ({
-      date: a.submittedAt,
-      accuracy: a.accuracy,
-      score: a.score,
-      total: a.total,
-    }));
-    ok(res, {
-      topics,
-      weakTopics: topics.filter((t) => t.total >= 2 && t.accuracy < 60),
-      trend,
-      attempts: attempts.length,
-      averageAccuracy: attempts.length
-        ? Math.round(attempts.reduce((s, a) => s + a.accuracy, 0) / attempts.length)
-        : 0,
     });
   }),
 );
@@ -312,7 +315,7 @@ const SM2 = (card, grade) => {
 };
 
 router.get(
-  "/flashcards",
+  ["/flashcards", "/quiz/flashcards"],
   asyncHandler(async (req, res) => {
     const filter = { userId: req.user._id };
     if (req.query.subjectId && mongoose.isValidObjectId(req.query.subjectId)) {
@@ -335,7 +338,7 @@ router.get(
 );
 
 router.post(
-  "/flashcards",
+  ["/flashcards", "/quiz/flashcards"],
   asyncHandler(async (req, res) => {
     const body = flashcardCreate.parse(req.body);
     const doc = await Flashcard.create({
@@ -348,7 +351,7 @@ router.post(
 );
 
 router.post(
-  "/flashcards/bulk",
+  ["/flashcards/bulk", "/quiz/flashcards/bulk"],
   asyncHandler(async (req, res) => {
     const list = Array.isArray(req.body && req.body.items) ? req.body.items : [];
     if (!list.length) return fail(res, 400, "No cards to add", "EMPTY");
@@ -363,7 +366,7 @@ router.post(
 );
 
 router.put(
-  "/flashcards/:id",
+  ["/flashcards/:id", "/quiz/flashcards/:id"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const body = flashcardUpdate.parse(req.body);
@@ -378,7 +381,7 @@ router.put(
 );
 
 router.delete(
-  "/flashcards/:id",
+  ["/flashcards/:id", "/quiz/flashcards/:id"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const doc = await Flashcard.findOneAndDelete({
@@ -391,7 +394,7 @@ router.delete(
 );
 
 router.post(
-  "/flashcards/:id/review",
+  ["/flashcards/:id/review", "/quiz/flashcards/:id/review"],
   asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
     const { grade } = reviewSchema.parse(req.body || {});
