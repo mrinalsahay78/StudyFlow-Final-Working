@@ -20,6 +20,7 @@ import Tasks from "./pages/Tasks";
 import Planner from "./pages/Planner";
 import Focus from "./pages/Focus";
 import Quizzes from "./pages/Quizzes";
+import QuizEditor from "./pages/QuizEditor";
 import QuizRunner from "./pages/QuizRunner";
 import Flashcards from "./pages/Flashcards";
 import Notes from "./pages/Notes";
@@ -83,6 +84,8 @@ function AppRoutes() {
         <Route path="focus" element={<Focus />} />
         <Route path="quizzes" element={<Quizzes />} />
         <Route path="quizzes/:id" element={<QuizRunner />} />
+        <Route path="quizzes/:id/run" element={<QuizRunner />} />
+        <Route path="quizzes/:id/edit" element={<QuizEditor />} />
         <Route path="flashcards" element={<Flashcards />} />
         <Route path="notes" element={<Notes />} />
         <Route path="library" element={<Library />} />

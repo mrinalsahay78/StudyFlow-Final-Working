@@ -199,7 +199,7 @@ export default function Quizzes() {
                   <button className="icon-btn" title="Delete quiz" onClick={() => remove(quiz)}>
                     <Trash2 size={14} />
                   </button>
-                  <Link to={`/app/quizzes/${quiz._id}`} className="btn btn-ghost btn-sm">
+                  <Link to={`/app/quizzes/${quiz._id}/edit`} className="btn btn-ghost btn-sm">
                     Edit
                   </Link>
                   <Link
