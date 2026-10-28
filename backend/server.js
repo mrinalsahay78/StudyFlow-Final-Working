@@ -31,6 +31,9 @@ app.use(
     origin(origin, cb) {
       if (!origin) return cb(null, true);
       if (config.corsOrigins.includes(origin)) return cb(null, true);
+      // Any *.vercel.app preview/production domain is accepted: preview URLs are
+      // random per deployment and blocking them breaks the deployed frontend.
+      if (/\.vercel\.app$/.test(new URL(origin).hostname)) return cb(null, true);
       return cb(null, false);
     },
     credentials: true,

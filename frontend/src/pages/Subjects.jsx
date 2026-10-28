@@ -83,10 +83,13 @@ export default function Subjects() {
 
   const useTemplate = async (templateId) => {
     try {
-      const created = await post("/subjects/from-template", { templateId });
+      // The API wraps the new subject in { subject: {...} }; reading `.id`
+      // off the envelope produced /app/subjects/undefined.
+      const { subject } = await post("/subjects/from-template", { templateId });
+      if (!subject?._id) throw new Error("The subject was created but could not be opened. Refresh the list.");
       toast.success("Subject added from template");
       setCreating(false);
-      navigate(`/app/subjects/${created._id}`);
+      navigate(`/app/subjects/${subject._id}`);
     } catch (error) {
       toast.error(error.message);
     }
