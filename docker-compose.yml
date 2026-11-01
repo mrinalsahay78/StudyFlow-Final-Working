@@ -1,0 +1,63 @@
+# ----------------------------------------------------------------------------
+# StudyFlow AI — full stack: MongoDB + API (serves the built SPA) via one file.
+# Start everything with:  docker compose up -d --build
+# Then open:               http://localhost:5101
+# ----------------------------------------------------------------------------
+services:
+  mongo:
+    image: mongo:7
+    container_name: studyflow-mongo
+    restart: unless-stopped
+    ports:
+      - "27018:27017"  # host 27017 is the local brew Mongo; container still serves 27017 internally
+    volumes:
+      - studyflow_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: studyflow-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "5101:5101"
+    environment:
+      NODE_ENV: production
+      PORT: 5101
+      HOST: 0.0.0.0
+      # Inside compose the API reaches Mongo via the service name, not localhost.
+      MONGO_URI: mongodb://mongo:27017/studyflow
+      TRUST_PROXY: "false"
+      DB_CONNECT_RETRIES: 20
+      # Set a real secret in production: JWT_SECRET=$(openssl rand -hex 48)
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:5101}
+      # AI assistant stays in labelled offline mode unless these are set.
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+    volumes:
+      - studyflow_uploads:/app/backend/uploads
+    healthcheck:
+      # /api/live answers even while Mongo is reconnecting.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5101/api/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  studyflow_mongo_data:
+    name: studyflow_mongo_data
+  studyflow_uploads:
+    name: studyflow_uploads

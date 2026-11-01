@@ -57,6 +57,10 @@ app.use("/api", apiLimiter);
 
 const { router: authRouter } = require("./routes/auth");
 
+// Liveness probe: answers even when the database is mid-reconnect, so
+// orchestrators (Docker/Render) can tell a slow DB from a dead process.
+app.get("/api/live", (req, res) => res.json({ status: "ok", service: "studyflow-api" }));
+
 app.get("/api/health", (req, res) =>
   res.json({
     status: "ok",
@@ -186,15 +190,30 @@ app.use((err, req, res, next) => {
 
 async function start() {
   fs.mkdirSync(config.uploadDir, { recursive: true });
-  try {
-    await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 10000 });
-    console.log(`[db] connected to ${config.mongoUri.replace(/\/\/[^@]*@/, "//***@")}`);
-  } catch (err) {
+  // Retry the database connection: in Docker the API often boots before
+  // MongoDB accepts connections, and on Atlas the first handshake can stall.
+  // Without retries one slow handshake = a dead backend = the client shows
+  // "Cannot reach the StudyFlow server" with no recovery.
+  const maxAttempts = Number(process.env.DB_CONNECT_RETRIES || 12);
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 10000 });
+      console.log(`[db] connected to ${config.mongoUri.replace(/\/\/[^@]*@/, "//***@")} (attempt ${attempt})`);
+      lastErr = null;
+      break;
+    } catch (err) {
+      lastErr = err;
+      console.error(`[db] connection attempt ${attempt}/${maxAttempts} failed: ${err.message}`);
+      if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, 4000));
+    }
+  }
+  if (lastErr) {
     console.error(
-      `[db] could not connect to MongoDB at ${config.mongoUri}: ${err.message}`,
+      `[db] could not connect to MongoDB at ${config.mongoUri}: ${lastErr.message}`,
     );
     console.error(
-      "[db] Start MongoDB (brew services start mongodb-community) or set MONGO_URI in backend/.env",
+      "[db] Start MongoDB (brew services start mongodb-community, or docker compose up -d mongo) or set MONGO_URI in backend/.env",
     );
     process.exit(1);
   }
