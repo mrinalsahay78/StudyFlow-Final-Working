@@ -130,7 +130,7 @@ export default function Tasks() {
   const moveTask = async (task, status) => {
     if (task.status === status) return;
     try {
-      await patch(`/tasks/${task._id}`, { status });
+      await put(`/tasks/${task._id}`, { status });
       setState((s) => ({
         ...s,
         items: s.items.map((t) => (t._id === task._id ? { ...t, status, completed: status === "done" } : t)),

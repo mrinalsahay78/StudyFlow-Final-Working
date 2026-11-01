@@ -148,7 +148,7 @@ export default function Academics() {
 
   const toggleGoal = async (goal) => {
     try {
-      await patch(`/academics/goals/${goal._id}`, { completed: !goal.completed });
+      await put(`/academics/goals/${goal._id}`, { completed: !goal.completed });
       load();
     } catch (error) {
       toast.error(error.message);
@@ -157,7 +157,7 @@ export default function Academics() {
 
   const markExamDone = async (exam) => {
     try {
-      await patch(`/academics/exams/${exam._id}`, { status: exam.status === "completed" ? "upcoming" : "completed" });
+      await put(`/academics/exams/${exam._id}`, { status: exam.status === "completed" ? "upcoming" : "completed" });
       load();
     } catch (error) {
       toast.error(error.message);

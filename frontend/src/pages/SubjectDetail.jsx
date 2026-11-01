@@ -269,7 +269,7 @@ export default function SubjectDetail() {
       const body = { ...editForm };
       if (body.semester) body.semester = Number(body.semester);
       if (body.targetHours) body.targetHours = Number(body.targetHours);
-      await patch(`/subjects/${id}`, body);
+      await put(`/subjects/${id}`, body);
       toast.success("Subject updated");
       setEditOpen(false);
       load();

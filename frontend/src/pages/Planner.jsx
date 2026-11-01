@@ -124,7 +124,7 @@ export default function Planner() {
     try {
       const body = { ...form, title: form.title.trim(), subjectId: form.subjectId || null };
       if (modal === "new") await post("/planner", body);
-      else await patch(`/planner/${modal._id}`, body);
+      else await put(`/planner/${modal._id}`, body);
       toast.success(modal === "new" ? "Block added" : "Block updated");
       setModal(null);
       load();
@@ -137,7 +137,7 @@ export default function Planner() {
 
   const toggleDone = async (entry) => {
     try {
-      await patch(`/planner/${entry._id}`, { completed: !entry.completed });
+      await put(`/planner/${entry._id}`, { completed: !entry.completed });
       load();
     } catch (err) {
       toast.error(err.message);

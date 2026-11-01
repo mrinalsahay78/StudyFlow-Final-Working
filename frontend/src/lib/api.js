@@ -100,7 +100,7 @@ export async function api(path, { method = "GET", body, signal, raw = false } = 
 export const get = (path, opts) => api(path, opts);
 export const post = (path, body, opts) => api(path, { ...opts, method: "POST", body });
 export const put = (path, body, opts) => api(path, { ...opts, method: "PUT", body });
-export const patch = (path, body, opts) => api(path, { ...opts, method: "PATCH", body });
+export const patch = (path, body, opts) => api(path, { ...opts, method: "PUT", body }); // compat: server has no PATCH; PUT is the update verb
 export const del = (path, body, opts) => api(path, { ...opts, method: "DELETE", body });
 
 export function uploadFile(file, subjectId) {

@@ -110,7 +110,7 @@ export default function Subjects() {
   const toggleSemesterPin = async (subject) => {
     try {
       const next = subject.semester ? null : Number(subject.semester || 1);
-      await patch(`/subjects/${subject._id}`, { semester: next });
+      await put(`/subjects/${subject._id}`, { semester: next });
       load();
     } catch (error) {
       toast.error(error.message);
