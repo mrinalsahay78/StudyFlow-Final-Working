@@ -143,12 +143,12 @@ test("planner insights report overlaps and missed sessions", async () => {
   await req("/api/planner", {
     method: "POST",
     token,
-    body: { title: "X", date: iso(), start: "14:00", end: "15:00" },
+    body: { title: "X", date: iso(), start: "23:00", end: "23:30" },
   });
   await req("/api/planner", {
     method: "POST",
     token,
-    body: { title: "Y", date: iso(), start: "14:30", end: "15:30", allowOverlap: true },
+    body: { title: "Y", date: iso(), start: "23:10", end: "23:40", allowOverlap: true },
   });
 
   const res = await req(`/api/planner/insights?from=${iso(-2)}&to=${iso(2)}`, { token });
@@ -159,7 +159,8 @@ test("planner insights report overlaps and missed sessions", async () => {
   assert.equal(res.body.data.missed[0].title, "Yesterday");
   assert.equal(res.body.data.days.length, 5);
   const today = res.body.data.days.find((d) => d.date === iso());
-  assert.equal(today.plannedMinutes, 120);
+  // 23:00–23:30 (30m) + 23:10–23:40 (30m, allowed overlap) = 60 planned minutes.
+  assert.equal(today.plannedMinutes, 60);
 });
 
 test("planner generate only creates real, non-overlapping sessions", async () => {
